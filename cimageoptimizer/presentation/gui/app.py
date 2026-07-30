@@ -9,6 +9,7 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Optional
 
 from cimageoptimizer.application.services.optimization_service import OptimizationService
+from cimageoptimizer.application.services.report_service import ReportService
 from cimageoptimizer.core.enums import OptimizationProfile, ProcessMode
 from cimageoptimizer.core.models import OptimizationResult, OptimizationSettings
 from cimageoptimizer.infrastructure.config import load_settings, save_settings
@@ -25,10 +26,17 @@ PROFILE_LABELS_BY_TEXT = {label: profile for profile, label in PROFILE_LABELS.it
 
 
 class App:
-    def __init__(self, root: tk.Tk, optimization_service: Optional[OptimizationService] = None) -> None:
+    def __init__(
+        self,
+        root: tk.Tk,
+        optimization_service: Optional[OptimizationService] = None,
+        report_service: Optional[ReportService] = None,
+    ) -> None:
         self.root = root
         self._optimization_service = optimization_service or OptimizationService()
+        self._report_service = report_service or ReportService()
         self._saved_settings = load_settings()
+        self._last_result: Optional[OptimizationResult] = None
 
         self.root.title("CImageOptimizer")
         self.root.geometry("600x440")
@@ -93,6 +101,11 @@ class App:
         self.cancel_btn = ttk.Button(self.action_frame, text="Cancel", command=self.cancel_optimization, state=tk.DISABLED)
         self.cancel_btn.pack(side=tk.LEFT, padx=5)
 
+        self.export_btn = ttk.Button(
+            self.action_frame, text="Export Report", command=self.export_report, state=tk.DISABLED
+        )
+        self.export_btn.pack(side=tk.LEFT, padx=5)
+
         # --- Progress ---
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(root, variable=self.progress_var, maximum=100)
@@ -106,6 +119,30 @@ class App:
         self.is_cancelled = True
         self.cancel_btn.config(state="disabled")
         self.log("Cancelling... waiting for current file to finish...")
+
+    def export_report(self) -> None:
+        if self._last_result is None:
+            messagebox.showerror("Error", "Run an optimization first.")
+            return
+
+        path_str = filedialog.asksaveasfilename(
+            title="Export Optimization Report",
+            defaultextension=".json",
+            filetypes=[("JSON report", "*.json"), ("CSV report", "*.csv")],
+        )
+        if not path_str:
+            return
+
+        path = Path(path_str)
+        try:
+            if path.suffix.lower() == ".csv":
+                self._report_service.export_csv(self._last_result, path)
+            else:
+                self._report_service.export_json(self._last_result, path)
+            self.log(f"Report exported: {path}")
+            messagebox.showinfo("Report Exported", f"Report saved to:\n{path}")
+        except OSError as exc:
+            messagebox.showerror("Error", f"Failed to export report: {exc}")
 
     def browse_source(self) -> None:
         folder = filedialog.askdirectory(title="Select Source Directory")
@@ -154,6 +191,8 @@ class App:
         )
 
         self.start_btn.config(state="disabled")
+        self.export_btn.config(state="disabled")
+        self._last_result = None
         self.progress_var.set(0)
 
         self.log_text.config(state="normal")
@@ -180,6 +219,8 @@ class App:
                 log_callback=self.log,
                 check_cancel_callback=lambda: self.is_cancelled,
             )
+            self._last_result = result
+            self.root.after(0, lambda: self.export_btn.config(state="normal"))
             if result.cancelled:
                 self.log("Process Cancelled!")
                 self.root.after(0, lambda: messagebox.showinfo("Cancelled", "Optimization was cancelled."))

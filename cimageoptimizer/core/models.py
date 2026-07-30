@@ -56,6 +56,9 @@ class FileOutcome:
     """The result of attempting to process a single file."""
 
     source: Path
+    destination: Optional[Path] = None
+    original_size_bytes: Optional[int] = None
+    final_size_bytes: Optional[int] = None
     error: Optional[str] = None
 
     @property
@@ -68,9 +71,23 @@ class OptimizationResult:
     """Summary of a completed (or cancelled) optimization run."""
 
     total_files: int
-    failures: list[FileOutcome] = field(default_factory=list)
+    outcomes: list[FileOutcome] = field(default_factory=list)
     cancelled: bool = False
+
+    @property
+    def failures(self) -> list[FileOutcome]:
+        return [outcome for outcome in self.outcomes if not outcome.succeeded]
 
     @property
     def failed_count(self) -> int:
         return len(self.failures)
+
+    @property
+    def bytes_saved(self) -> int:
+        return sum(
+            outcome.original_size_bytes - outcome.final_size_bytes
+            for outcome in self.outcomes
+            if outcome.succeeded
+            and outcome.original_size_bytes is not None
+            and outcome.final_size_bytes is not None
+        )

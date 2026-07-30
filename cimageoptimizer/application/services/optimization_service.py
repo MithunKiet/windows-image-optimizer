@@ -129,15 +129,23 @@ class OptimizationService:
         result: OptimizationResult,
         result_lock: Lock,
     ) -> None:
+        original_size = src_file.stat().st_size
         try:
             self._compression_service.process(src_file, dst_file, settings)
+            outcome = FileOutcome(
+                source=src_file,
+                destination=dst_file,
+                original_size_bytes=original_size,
+                final_size_bytes=dst_file.stat().st_size,
+            )
         except Exception as exc:  # noqa: BLE001 - a single bad file must not abort the batch
             logger.exception("Failed to process %s", src_file)
-            with result_lock:
-                result.failures.append(FileOutcome(source=src_file, error=str(exc)))
+            outcome = FileOutcome(source=src_file, original_size_bytes=original_size, error=str(exc))
             try:
                 dst_file.parent.mkdir(parents=True, exist_ok=True)
                 copy_file(src_file, dst_file)
             except Exception as copy_error:  # noqa: BLE001
-                with result_lock:
-                    result.failures.append(FileOutcome(source=src_file, error=f"copy failed: {copy_error}"))
+                outcome.error = f"{outcome.error} | copy failed: {copy_error}"
+
+        with result_lock:
+            result.outcomes.append(outcome)
