@@ -9,23 +9,33 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Optional
 
 from cimageoptimizer.application.services.optimization_service import OptimizationService
-from cimageoptimizer.core.enums import ProcessMode
+from cimageoptimizer.core.enums import OptimizationProfile, ProcessMode
 from cimageoptimizer.core.models import OptimizationResult, OptimizationSettings
+from cimageoptimizer.infrastructure.config import load_settings, save_settings
 
 MODE_ALL_FILES = "All Files (Optimize images, copy others)"
 MODE_IMAGES_ONLY = "Images Only (Skip non-images)"
+
+PROFILE_LABELS = {
+    OptimizationProfile.SAFE: "Safe (largest files, best quality)",
+    OptimizationProfile.RECOMMENDED: "Recommended (balanced)",
+    OptimizationProfile.ADVANCED: "Advanced (smallest files, aggressive compression)",
+}
+PROFILE_LABELS_BY_TEXT = {label: profile for profile, label in PROFILE_LABELS.items()}
 
 
 class App:
     def __init__(self, root: tk.Tk, optimization_service: Optional[OptimizationService] = None) -> None:
         self.root = root
         self._optimization_service = optimization_service or OptimizationService()
+        self._saved_settings = load_settings()
 
         self.root.title("CImageOptimizer")
-        self.root.geometry("600x400")
-        self.root.minsize(500, 350)
+        self.root.geometry("600x440")
+        self.root.minsize(500, 380)
 
-        # Configure grid weight
+        # Configure grid weight - row 6 holds the log panel, which should
+        # absorb all extra vertical space when the window is resized.
         self.root.columnconfigure(1, weight=1)
         self.root.rowconfigure(6, weight=1)
 
@@ -34,19 +44,21 @@ class App:
         # UI Elements
         # --- Source ---
         ttk.Label(root, text="Source Directory:").grid(row=0, column=0, padx=10, pady=(15, 5), sticky="w")
-        self.source_var = tk.StringVar()
+        self.source_var = tk.StringVar(value=self._saved_settings.get("source_dir", ""))
         ttk.Entry(root, textvariable=self.source_var).grid(row=0, column=1, padx=10, pady=(15, 5), sticky="ew")
         ttk.Button(root, text="Browse", command=self.browse_source).grid(row=0, column=2, padx=10, pady=(15, 5))
 
         # --- Output ---
         ttk.Label(root, text="Output Directory:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        self.output_var = tk.StringVar()
+        self.output_var = tk.StringVar(value=self._saved_settings.get("output_dir", ""))
         ttk.Entry(root, textvariable=self.output_var).grid(row=1, column=1, padx=10, pady=5, sticky="ew")
         ttk.Button(root, text="Browse", command=self.browse_output).grid(row=1, column=2, padx=10, pady=5)
 
-        # --- Options ---
+        # --- Process mode ---
         ttk.Label(root, text="Process Mode:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
-        self.mode_var = tk.StringVar(value=MODE_ALL_FILES)
+        saved_mode = self._saved_settings.get("process_mode")
+        mode_default = MODE_IMAGES_ONLY if saved_mode == ProcessMode.IMAGES_ONLY.value else MODE_ALL_FILES
+        self.mode_var = tk.StringVar(value=mode_default)
         self.mode_cb = ttk.Combobox(
             root,
             textvariable=self.mode_var,
@@ -55,9 +67,25 @@ class App:
         )
         self.mode_cb.grid(row=2, column=1, columnspan=2, padx=10, pady=5, sticky="ew")
 
+        # --- Optimization profile ---
+        ttk.Label(root, text="Profile:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+        saved_profile = self._saved_settings.get("profile", OptimizationProfile.RECOMMENDED.value)
+        try:
+            profile_default = PROFILE_LABELS[OptimizationProfile(saved_profile)]
+        except ValueError:
+            profile_default = PROFILE_LABELS[OptimizationProfile.RECOMMENDED]
+        self.profile_var = tk.StringVar(value=profile_default)
+        self.profile_cb = ttk.Combobox(
+            root,
+            textvariable=self.profile_var,
+            state="readonly",
+            values=list(PROFILE_LABELS.values()),
+        )
+        self.profile_cb.grid(row=3, column=1, columnspan=2, padx=10, pady=5, sticky="ew")
+
         # --- Action ---
         self.action_frame = ttk.Frame(root)
-        self.action_frame.grid(row=3, column=0, columnspan=3, pady=10)
+        self.action_frame.grid(row=4, column=0, columnspan=3, pady=10)
 
         self.start_btn = ttk.Button(self.action_frame, text="Start Optimization", command=self.start_optimization)
         self.start_btn.pack(side=tk.LEFT, padx=5)
@@ -68,11 +96,11 @@ class App:
         # --- Progress ---
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(root, variable=self.progress_var, maximum=100)
-        self.progress_bar.grid(row=4, column=0, columnspan=3, padx=10, pady=5, sticky="ew")
+        self.progress_bar.grid(row=5, column=0, columnspan=3, padx=10, pady=5, sticky="ew")
 
         # --- Logs ---
         self.log_text = tk.Text(root, state="disabled", height=10)
-        self.log_text.grid(row=5, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
+        self.log_text.grid(row=6, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
 
     def cancel_optimization(self) -> None:
         self.is_cancelled = True
@@ -109,11 +137,21 @@ class App:
     def start_optimization(self) -> None:
         source = self.source_var.get().strip()
         output = self.output_var.get().strip()
-        images_only = self.mode_var.get() == MODE_IMAGES_ONLY
+        process_mode = ProcessMode.IMAGES_ONLY if self.mode_var.get() == MODE_IMAGES_ONLY else ProcessMode.ALL_FILES
+        profile = PROFILE_LABELS_BY_TEXT[self.profile_var.get()]
 
         if not source or not output:
             messagebox.showerror("Error", "Please select both Source and Output directories.")
             return
+
+        save_settings(
+            {
+                "source_dir": source,
+                "output_dir": output,
+                "process_mode": process_mode.value,
+                "profile": profile.value,
+            }
+        )
 
         self.start_btn.config(state="disabled")
         self.progress_var.set(0)
@@ -126,19 +164,16 @@ class App:
 
         self.is_cancelled = False
 
+        settings = OptimizationSettings.for_profile(profile, Path(source), Path(output), process_mode)
+
         # Run in thread to prevent UI freezing
-        thread = threading.Thread(target=self.run_task, args=(source, output, images_only))
+        thread = threading.Thread(target=self.run_task, args=(settings,))
         thread.daemon = True
         thread.start()
 
-    def run_task(self, source: str, output: str, images_only: bool) -> None:
+    def run_task(self, settings: OptimizationSettings) -> None:
         self.root.after(0, lambda: self.cancel_btn.config(state="normal"))
         try:
-            settings = OptimizationSettings(
-                source_dir=Path(source),
-                output_dir=Path(output),
-                process_mode=ProcessMode.IMAGES_ONLY if images_only else ProcessMode.ALL_FILES,
-            )
             result: OptimizationResult = self._optimization_service.run(
                 settings,
                 progress_callback=self.progress,

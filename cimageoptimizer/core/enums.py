@@ -8,3 +8,11 @@ class ProcessMode(str, Enum):
 
     ALL_FILES = "all_files"
     IMAGES_ONLY = "images_only"
+
+
+class OptimizationProfile(str, Enum):
+    """Preset compression aggressiveness, trading output size against quality."""
+
+    SAFE = "safe"
+    RECOMMENDED = "recommended"
+    ADVANCED = "advanced"

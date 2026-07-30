@@ -12,8 +12,9 @@ from cimageoptimizer.core.constants import (
     DEFAULT_MAX_WIDTH,
     DEFAULT_MIN_QUALITY,
     DEFAULT_QUALITY_STEP,
+    PROFILE_PRESETS,
 )
-from cimageoptimizer.core.enums import ProcessMode
+from cimageoptimizer.core.enums import OptimizationProfile, ProcessMode
 
 ProgressCallback = Callable[[int, int], None]
 LogCallback = Callable[[str], None]
@@ -36,6 +37,18 @@ class OptimizationSettings:
     @property
     def images_only(self) -> bool:
         return self.process_mode is ProcessMode.IMAGES_ONLY
+
+    @classmethod
+    def for_profile(
+        cls,
+        profile: OptimizationProfile,
+        source_dir: Path,
+        output_dir: Path,
+        process_mode: ProcessMode = ProcessMode.ALL_FILES,
+    ) -> "OptimizationSettings":
+        """Builds settings from one of the Safe/Recommended/Advanced presets."""
+        preset = PROFILE_PRESETS[profile]
+        return cls(source_dir=source_dir, output_dir=output_dir, process_mode=process_mode, **preset)
 
 
 @dataclass
