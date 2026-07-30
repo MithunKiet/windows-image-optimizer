@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import logging
+import os
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from threading import Lock
 from typing import Optional
 
 from cimageoptimizer.application.services.compression_service import ImageCompressionService
@@ -20,17 +24,27 @@ from cimageoptimizer.infrastructure.filesystem import copy_file
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_MAX_WORKERS = min(8, (os.cpu_count() or 4))
+
 
 class OptimizationService:
-    """Coordinates discovery and compression services to run a full batch."""
+    """Coordinates discovery and compression services to run a full batch.
+
+    Files are processed concurrently via a thread pool: each file is an
+    independent read/transform/write, so there is no shared mutable state
+    between them (result aggregation is the only shared state, and it is
+    protected by a lock).
+    """
 
     def __init__(
         self,
         discovery_service: Optional[FileDiscoveryService] = None,
         compression_service: Optional[ImageCompressionService] = None,
+        max_workers: Optional[int] = None,
     ) -> None:
         self._discovery_service = discovery_service or FileDiscoveryService()
         self._compression_service = compression_service or ImageCompressionService()
+        self._max_workers = max_workers if max_workers and max_workers > 0 else DEFAULT_MAX_WORKERS
 
     def run(
         self,
@@ -60,19 +74,38 @@ class OptimizationService:
             log("No new files to optimize.")
             return result
 
-        for index, src_file in enumerate(missing_files):
-            if check_cancel_callback and check_cancel_callback():
-                log("Optimization cancelled by user.")
-                result.cancelled = True
-                break
+        result_lock = Lock()
+        progress_lock = Lock()
+        completed_count = 0
+        cancelled = False
 
+        def is_cancelled() -> bool:
+            nonlocal cancelled
+            if not cancelled and check_cancel_callback and check_cancel_callback():
+                cancelled = True
+            return cancelled
+
+        def worker(src_file: Path) -> None:
+            nonlocal completed_count
+            if not is_cancelled():
+                relative_path = src_file.relative_to(settings.source_dir)
+                dst_file = settings.output_dir / relative_path
+                self._process_one(src_file, dst_file, settings, result, result_lock)
+
+            with progress_lock:
+                completed_count += 1
+                current = completed_count
             if progress_callback:
-                progress_callback(index, total_files)
+                progress_callback(current, total_files)
 
-            relative_path = src_file.relative_to(settings.source_dir)
-            dst_file = settings.output_dir / relative_path
+        with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+            # map() blocks until every submission has run; cancellation stops
+            # tasks that haven't started yet, in-flight ones finish normally.
+            list(executor.map(worker, missing_files))
 
-            self._process_one(src_file, dst_file, settings, result)
+        if is_cancelled():
+            log("Optimization cancelled by user.")
+            result.cancelled = True
 
         if progress_callback:
             progress_callback(total_files, total_files)
@@ -88,14 +121,23 @@ class OptimizationService:
         log("Done. Missing files optimized/copied.")
         return result
 
-    def _process_one(self, src_file, dst_file, settings: OptimizationSettings, result: OptimizationResult) -> None:
+    def _process_one(
+        self,
+        src_file: Path,
+        dst_file: Path,
+        settings: OptimizationSettings,
+        result: OptimizationResult,
+        result_lock: Lock,
+    ) -> None:
         try:
             self._compression_service.process(src_file, dst_file, settings)
         except Exception as exc:  # noqa: BLE001 - a single bad file must not abort the batch
             logger.exception("Failed to process %s", src_file)
-            result.failures.append(FileOutcome(source=src_file, error=str(exc)))
+            with result_lock:
+                result.failures.append(FileOutcome(source=src_file, error=str(exc)))
             try:
                 dst_file.parent.mkdir(parents=True, exist_ok=True)
                 copy_file(src_file, dst_file)
             except Exception as copy_error:  # noqa: BLE001
-                result.failures.append(FileOutcome(source=src_file, error=f"copy failed: {copy_error}"))
+                with result_lock:
+                    result.failures.append(FileOutcome(source=src_file, error=f"copy failed: {copy_error}"))
