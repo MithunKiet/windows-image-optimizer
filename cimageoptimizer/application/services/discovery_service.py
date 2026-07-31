@@ -14,13 +14,19 @@ class FileDiscoveryService:
     A file is considered "missing" purely by relative path existing under
     output_dir; this makes repeated runs incremental (only new files are
     processed), at the cost of not re-processing files whose content changed
-    but whose relative path already exists in the output tree.
+    but whose relative path already exists in the output tree. Pass
+    overwrite_existing=True to disable that check and include every
+    matching file regardless of whether its destination already exists.
     """
 
-    def find_missing_files(self, source_dir: Path, output_dir: Path, images_only: bool) -> list[Path]:
-        return list(self._iter_missing_files(source_dir, output_dir, images_only))
+    def find_missing_files(
+        self, source_dir: Path, output_dir: Path, images_only: bool, overwrite_existing: bool = False
+    ) -> list[Path]:
+        return list(self._iter_missing_files(source_dir, output_dir, images_only, overwrite_existing))
 
-    def _iter_missing_files(self, source_dir: Path, output_dir: Path, images_only: bool) -> Iterator[Path]:
+    def _iter_missing_files(
+        self, source_dir: Path, output_dir: Path, images_only: bool, overwrite_existing: bool
+    ) -> Iterator[Path]:
         for src_file in source_dir.rglob("*"):
             if not src_file.is_file():
                 continue
@@ -29,11 +35,15 @@ class FileDiscoveryService:
                 continue
 
             relative_path = src_file.relative_to(source_dir)
-            if not (output_dir / relative_path).exists():
+            if overwrite_existing or not (output_dir / relative_path).exists():
                 yield src_file
 
     def find_missing_from_files(
-        self, files: Sequence[Path], output_dir: Path, images_only: bool
+        self,
+        files: Sequence[Path],
+        output_dir: Path,
+        images_only: bool,
+        overwrite_existing: bool = False,
     ) -> list[Path]:
         """Same "missing" semantics as find_missing_files, for an explicit
         file selection instead of a directory walk. Destination is always
@@ -48,7 +58,7 @@ class FileDiscoveryService:
             if images_only and src_file.suffix.lower() not in IMAGE_EXTENSIONS:
                 continue
 
-            if not (output_dir / src_file.name).exists():
+            if overwrite_existing or not (output_dir / src_file.name).exists():
                 missing.append(src_file)
 
         return missing

@@ -40,13 +40,13 @@ class App:
         self._selected_files: Optional[list[Path]] = None
 
         self.root.title("CImageOptimizer")
-        self.root.geometry("600x500")
-        self.root.minsize(500, 420)
+        self.root.geometry("600x530")
+        self.root.minsize(500, 440)
 
-        # Configure grid weight - row 8 holds the log panel, which should
+        # Configure grid weight - row 9 holds the log panel, which should
         # absorb all extra vertical space when the window is resized.
         self.root.columnconfigure(1, weight=1)
-        self.root.rowconfigure(8, weight=1)
+        self.root.rowconfigure(9, weight=1)
 
         self.is_cancelled = False
 
@@ -112,9 +112,18 @@ class App:
             variable=self.preserve_resolution_var,
         ).grid(row=5, column=1, columnspan=2, padx=10, pady=5, sticky="w")
 
+        # --- Overwrite existing ---
+        saved_overwrite_existing = bool(self._saved_settings.get("overwrite_existing", False))
+        self.overwrite_existing_var = tk.BooleanVar(value=saved_overwrite_existing)
+        ttk.Checkbutton(
+            root,
+            text="Overwrite existing files in output (disables incremental skip)",
+            variable=self.overwrite_existing_var,
+        ).grid(row=6, column=1, columnspan=2, padx=10, pady=5, sticky="w")
+
         # --- Action ---
         self.action_frame = ttk.Frame(root)
-        self.action_frame.grid(row=6, column=0, columnspan=3, pady=10)
+        self.action_frame.grid(row=7, column=0, columnspan=3, pady=10)
 
         self.start_btn = ttk.Button(self.action_frame, text="Start Optimization", command=self.start_optimization)
         self.start_btn.pack(side=tk.LEFT, padx=5)
@@ -130,11 +139,11 @@ class App:
         # --- Progress ---
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(root, variable=self.progress_var, maximum=100)
-        self.progress_bar.grid(row=7, column=0, columnspan=3, padx=10, pady=5, sticky="ew")
+        self.progress_bar.grid(row=8, column=0, columnspan=3, padx=10, pady=5, sticky="ew")
 
         # --- Logs ---
         self.log_text = tk.Text(root, state="disabled", height=10)
-        self.log_text.grid(row=8, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
+        self.log_text.grid(row=9, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
 
     def cancel_optimization(self) -> None:
         self.is_cancelled = True
@@ -223,6 +232,7 @@ class App:
             source_dir = Path(source)
 
         preserve_resolution = self.preserve_resolution_var.get()
+        overwrite_existing = self.overwrite_existing_var.get()
 
         # Individual file selections aren't persisted (the files may not
         # exist next launch); only folder-based settings are remembered.
@@ -234,6 +244,7 @@ class App:
                     "process_mode": process_mode.value,
                     "profile": profile.value,
                     "preserve_resolution": preserve_resolution,
+                    "overwrite_existing": overwrite_existing,
                 }
             )
 
@@ -257,6 +268,7 @@ class App:
             process_mode,
             source_files=source_files,
             preserve_resolution=preserve_resolution,
+            overwrite_existing=overwrite_existing,
         )
 
         # Run in thread to prevent UI freezing

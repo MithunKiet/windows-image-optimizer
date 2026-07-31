@@ -28,6 +28,19 @@ def test_run_is_incremental(tmp_path, make_image):
     assert result.total_files == 0
 
 
+def test_run_with_overwrite_existing_reprocesses_files(tmp_path, make_image):
+    source = tmp_path / "source"
+    output = tmp_path / "output"
+    make_image(source / "a.jpg")
+    make_image(output / "a.jpg")
+
+    settings = OptimizationSettings(source_dir=source, output_dir=output, overwrite_existing=True)
+    result = OptimizationService().run(settings)
+
+    assert result.total_files == 1
+    assert result.failed_count == 0
+
+
 def test_run_respects_images_only_mode(tmp_path, make_image):
     source = tmp_path / "source"
     output = tmp_path / "output"

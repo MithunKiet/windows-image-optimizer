@@ -43,6 +43,10 @@ class OptimizationSettings:
     # When True, images are never resized regardless of max_width - only
     # quality/compression is used to reduce file size.
     preserve_resolution: bool = False
+    # When True, a file is reprocessed even if a same-named file already
+    # exists at its destination (normally such files are skipped, which is
+    # what makes reruns incremental).
+    overwrite_existing: bool = False
 
     @property
     def images_only(self) -> bool:
@@ -57,6 +61,7 @@ class OptimizationSettings:
         process_mode: ProcessMode = ProcessMode.ALL_FILES,
         source_files: Optional[Sequence[Path]] = None,
         preserve_resolution: bool = False,
+        overwrite_existing: bool = False,
     ) -> "OptimizationSettings":
         """Builds settings from one of the Safe/Recommended/Advanced presets."""
         preset = PROFILE_PRESETS[profile]
@@ -66,6 +71,7 @@ class OptimizationSettings:
             process_mode=process_mode,
             source_files=tuple(source_files) if source_files is not None else None,
             preserve_resolution=preserve_resolution,
+            overwrite_existing=overwrite_existing,
             **preset,
         )
 

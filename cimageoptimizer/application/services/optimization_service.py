@@ -67,11 +67,17 @@ class OptimizationService:
 
         if settings.source_files is not None:
             missing_files = self._discovery_service.find_missing_from_files(
-                settings.source_files, settings.output_dir, settings.images_only
+                settings.source_files,
+                settings.output_dir,
+                settings.images_only,
+                settings.overwrite_existing,
             )
         else:
             missing_files = self._discovery_service.find_missing_files(
-                settings.source_dir, settings.output_dir, settings.images_only
+                settings.source_dir,
+                settings.output_dir,
+                settings.images_only,
+                settings.overwrite_existing,
             )
         total_files = len(missing_files)
         log(f"Files found to process: {total_files}")
