@@ -40,13 +40,13 @@ class App:
         self._selected_files: Optional[list[Path]] = None
 
         self.root.title("CImageOptimizer")
-        self.root.geometry("600x530")
-        self.root.minsize(500, 440)
+        self.root.geometry("600x560")
+        self.root.minsize(500, 460)
 
-        # Configure grid weight - row 9 holds the log panel, which should
+        # Configure grid weight - row 10 holds the log panel, which should
         # absorb all extra vertical space when the window is resized.
         self.root.columnconfigure(1, weight=1)
-        self.root.rowconfigure(9, weight=1)
+        self.root.rowconfigure(10, weight=1)
 
         self.is_cancelled = False
 
@@ -121,9 +121,18 @@ class App:
             variable=self.overwrite_existing_var,
         ).grid(row=6, column=1, columnspan=2, padx=10, pady=5, sticky="w")
 
+        # --- Convert oversized lossless images to JPEG ---
+        saved_convert = bool(self._saved_settings.get("convert_to_jpeg_if_oversized", False))
+        self.convert_to_jpeg_var = tk.BooleanVar(value=saved_convert)
+        ttk.Checkbutton(
+            root,
+            text="Convert oversized PNG/BMP/TIFF to JPEG to hit the size target",
+            variable=self.convert_to_jpeg_var,
+        ).grid(row=7, column=1, columnspan=2, padx=10, pady=5, sticky="w")
+
         # --- Action ---
         self.action_frame = ttk.Frame(root)
-        self.action_frame.grid(row=7, column=0, columnspan=3, pady=10)
+        self.action_frame.grid(row=8, column=0, columnspan=3, pady=10)
 
         self.start_btn = ttk.Button(self.action_frame, text="Start Optimization", command=self.start_optimization)
         self.start_btn.pack(side=tk.LEFT, padx=5)
@@ -139,11 +148,11 @@ class App:
         # --- Progress ---
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(root, variable=self.progress_var, maximum=100)
-        self.progress_bar.grid(row=8, column=0, columnspan=3, padx=10, pady=5, sticky="ew")
+        self.progress_bar.grid(row=9, column=0, columnspan=3, padx=10, pady=5, sticky="ew")
 
         # --- Logs ---
         self.log_text = tk.Text(root, state="disabled", height=10)
-        self.log_text.grid(row=9, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
+        self.log_text.grid(row=10, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
 
     def cancel_optimization(self) -> None:
         self.is_cancelled = True
@@ -233,6 +242,7 @@ class App:
 
         preserve_resolution = self.preserve_resolution_var.get()
         overwrite_existing = self.overwrite_existing_var.get()
+        convert_to_jpeg_if_oversized = self.convert_to_jpeg_var.get()
 
         # Individual file selections aren't persisted (the files may not
         # exist next launch); only folder-based settings are remembered.
@@ -245,6 +255,7 @@ class App:
                     "profile": profile.value,
                     "preserve_resolution": preserve_resolution,
                     "overwrite_existing": overwrite_existing,
+                    "convert_to_jpeg_if_oversized": convert_to_jpeg_if_oversized,
                 }
             )
 
@@ -269,6 +280,7 @@ class App:
             source_files=source_files,
             preserve_resolution=preserve_resolution,
             overwrite_existing=overwrite_existing,
+            convert_to_jpeg_if_oversized=convert_to_jpeg_if_oversized,
         )
 
         # Run in thread to prevent UI freezing

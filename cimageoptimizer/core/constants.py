@@ -4,6 +4,12 @@ from cimageoptimizer.core.enums import OptimizationProfile
 
 IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"})
 
+# Formats where Pillow's `quality` parameter genuinely produces smaller
+# output at lower values. PNG/BMP/TIFF are lossless in Pillow's plain
+# save() - passing `quality` to them is silently ignored, so iterating it
+# in a loop just re-encodes the same bytes repeatedly for no benefit.
+QUALITY_CONTROLLABLE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".webp"})
+
 DEFAULT_MAX_SIZE_MB = 1.0
 DEFAULT_INITIAL_QUALITY = 85
 DEFAULT_MIN_QUALITY = 45

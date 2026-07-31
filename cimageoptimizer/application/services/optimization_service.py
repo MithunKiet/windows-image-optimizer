@@ -149,12 +149,12 @@ class OptimizationService:
     ) -> None:
         original_size = src_file.stat().st_size
         try:
-            self._compression_service.process(src_file, dst_file, settings)
+            actual_dst = self._compression_service.process(src_file, dst_file, settings)
             outcome = FileOutcome(
                 source=src_file,
-                destination=dst_file,
+                destination=actual_dst,
                 original_size_bytes=original_size,
-                final_size_bytes=dst_file.stat().st_size,
+                final_size_bytes=actual_dst.stat().st_size,
             )
         except Exception as exc:  # noqa: BLE001 - a single bad file must not abort the batch
             logger.exception("Failed to process %s", src_file)

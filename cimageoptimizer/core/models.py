@@ -47,6 +47,12 @@ class OptimizationSettings:
     # exists at its destination (normally such files are skipped, which is
     # what makes reruns incremental).
     overwrite_existing: bool = False
+    # When True, a lossless image (PNG/BMP/TIFF) that is still over
+    # max_size_mb after a single lossless optimization pass is re-saved as
+    # a .jpg using real lossy compression to reach the target. The original
+    # lossless output is removed and replaced by the .jpg - see
+    # ImageCompressionService for the size-check logic.
+    convert_to_jpeg_if_oversized: bool = False
 
     @property
     def images_only(self) -> bool:
@@ -62,6 +68,7 @@ class OptimizationSettings:
         source_files: Optional[Sequence[Path]] = None,
         preserve_resolution: bool = False,
         overwrite_existing: bool = False,
+        convert_to_jpeg_if_oversized: bool = False,
     ) -> "OptimizationSettings":
         """Builds settings from one of the Safe/Recommended/Advanced presets."""
         preset = PROFILE_PRESETS[profile]
@@ -72,6 +79,7 @@ class OptimizationSettings:
             source_files=tuple(source_files) if source_files is not None else None,
             preserve_resolution=preserve_resolution,
             overwrite_existing=overwrite_existing,
+            convert_to_jpeg_if_oversized=convert_to_jpeg_if_oversized,
             **preset,
         )
 
