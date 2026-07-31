@@ -24,9 +24,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   files are written flat into the output folder by filename.
 - "Keep original resolution (don't resize, only compress)" option: skips
   the resize step entirely and only reduces file size via JPEG quality.
+- "Overwrite existing files in output" option: disables the incremental
+  skip-if-exists check so a rerun into a folder that already has a
+  same-named file actually reprocesses it, instead of silently finding
+  0 files to process.
 - pytest suite covering discovery, compression, orchestration, profiles,
-  settings persistence, report export, individual-file selection, and
-  resolution preservation (29 tests).
+  settings persistence, report export, individual-file selection,
+  resolution preservation, and overwrite behavior (32 tests).
 - GitHub Actions CI: tests on Python 3.10-3.12, plus a packaging sanity
   build (PyInstaller + installer) on every push/PR to `main`.
 - `LICENSE` (MIT), `.editorconfig`, `ARCHITECTURE.md`, `CONTRIBUTING.md`,
