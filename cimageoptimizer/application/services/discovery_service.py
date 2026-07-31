@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Sequence
 
 from cimageoptimizer.core.constants import IMAGE_EXTENSIONS
 
@@ -31,3 +31,24 @@ class FileDiscoveryService:
             relative_path = src_file.relative_to(source_dir)
             if not (output_dir / relative_path).exists():
                 yield src_file
+
+    def find_missing_from_files(
+        self, files: Sequence[Path], output_dir: Path, images_only: bool
+    ) -> list[Path]:
+        """Same "missing" semantics as find_missing_files, for an explicit
+        file selection instead of a directory walk. Destination is always
+        output_dir / filename (flat), since an arbitrary selection has no
+        common directory structure worth preserving.
+        """
+        missing = []
+        for src_file in files:
+            if not src_file.is_file():
+                continue
+
+            if images_only and src_file.suffix.lower() not in IMAGE_EXTENSIONS:
+                continue
+
+            if not (output_dir / src_file.name).exists():
+                missing.append(src_file)
+
+        return missing

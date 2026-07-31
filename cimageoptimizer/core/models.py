@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Sequence
 
 from cimageoptimizer.core.constants import (
     DEFAULT_INITIAL_QUALITY,
@@ -33,6 +33,13 @@ class OptimizationSettings:
     min_quality: int = DEFAULT_MIN_QUALITY
     max_width: int = DEFAULT_MAX_WIDTH
     quality_step: int = DEFAULT_QUALITY_STEP
+    # When set, the run processes exactly these files instead of walking
+    # source_dir. Files are written flat into output_dir (by filename),
+    # since an explicit selection may span unrelated directories with no
+    # common structure worth preserving. source_dir is still required and
+    # used for logging/display, but is not used for path resolution in
+    # this mode.
+    source_files: Optional[tuple[Path, ...]] = None
 
     @property
     def images_only(self) -> bool:
@@ -45,10 +52,17 @@ class OptimizationSettings:
         source_dir: Path,
         output_dir: Path,
         process_mode: ProcessMode = ProcessMode.ALL_FILES,
+        source_files: Optional[Sequence[Path]] = None,
     ) -> "OptimizationSettings":
         """Builds settings from one of the Safe/Recommended/Advanced presets."""
         preset = PROFILE_PRESETS[profile]
-        return cls(source_dir=source_dir, output_dir=output_dir, process_mode=process_mode, **preset)
+        return cls(
+            source_dir=source_dir,
+            output_dir=output_dir,
+            process_mode=process_mode,
+            source_files=tuple(source_files) if source_files is not None else None,
+            **preset,
+        )
 
 
 @dataclass
