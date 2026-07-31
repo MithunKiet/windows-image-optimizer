@@ -26,3 +26,13 @@ def test_safe_profile_is_less_aggressive_than_advanced():
     assert safe.max_size_mb > advanced.max_size_mb
     assert safe.min_quality > advanced.min_quality
     assert safe.max_width > advanced.max_width
+
+
+def test_preserve_resolution_defaults_to_false_and_is_settable():
+    default_settings = OptimizationSettings.for_profile(OptimizationProfile.RECOMMENDED, Path("src"), Path("out"))
+    assert default_settings.preserve_resolution is False
+
+    preserved = OptimizationSettings.for_profile(
+        OptimizationProfile.RECOMMENDED, Path("src"), Path("out"), preserve_resolution=True
+    )
+    assert preserved.preserve_resolution is True

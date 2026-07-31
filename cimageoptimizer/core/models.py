@@ -40,6 +40,9 @@ class OptimizationSettings:
     # used for logging/display, but is not used for path resolution in
     # this mode.
     source_files: Optional[tuple[Path, ...]] = None
+    # When True, images are never resized regardless of max_width - only
+    # quality/compression is used to reduce file size.
+    preserve_resolution: bool = False
 
     @property
     def images_only(self) -> bool:
@@ -53,6 +56,7 @@ class OptimizationSettings:
         output_dir: Path,
         process_mode: ProcessMode = ProcessMode.ALL_FILES,
         source_files: Optional[Sequence[Path]] = None,
+        preserve_resolution: bool = False,
     ) -> "OptimizationSettings":
         """Builds settings from one of the Safe/Recommended/Advanced presets."""
         preset = PROFILE_PRESETS[profile]
@@ -61,6 +65,7 @@ class OptimizationSettings:
             output_dir=output_dir,
             process_mode=process_mode,
             source_files=tuple(source_files) if source_files is not None else None,
+            preserve_resolution=preserve_resolution,
             **preset,
         )
 

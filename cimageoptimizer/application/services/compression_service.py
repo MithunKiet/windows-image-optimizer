@@ -35,7 +35,7 @@ class ImageCompressionService:
             if img.mode in ("RGBA", "P"):
                 img = img.convert("RGB")
 
-            if img.width > settings.max_width:
+            if not settings.preserve_resolution and img.width > settings.max_width:
                 ratio = settings.max_width / img.width
                 new_height = int(img.height * ratio)
                 img = img.resize((settings.max_width, new_height), Image.LANCZOS)

@@ -40,3 +40,26 @@ def test_large_image_is_resized_and_shrunk(tmp_path, make_image):
     with Image.open(dst) as out_img:
         assert out_img.width <= 1920
     assert dst.stat().st_size < src.stat().st_size
+
+
+def test_preserve_resolution_skips_resizing(tmp_path, make_image):
+    src = make_image(tmp_path / "big.jpg", width=3000, height=2000, noisy=True, quality=100)
+    dst = tmp_path / "out" / "big.jpg"
+    settings = _settings(
+        tmp_path,
+        max_size_mb=1,
+        max_width=1920,
+        initial_quality=85,
+        min_quality=45,
+        quality_step=5,
+        preserve_resolution=True,
+    )
+
+    ImageCompressionService().process(src, dst, settings)
+
+    assert dst.exists()
+    with Image.open(dst) as out_img:
+        assert out_img.width == 3000
+        assert out_img.height == 2000
+    # Still compressed via quality, even though dimensions are unchanged.
+    assert dst.stat().st_size < src.stat().st_size
