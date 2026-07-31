@@ -19,8 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   completes.
 - Persisted user settings (`settings.json` under `%APPDATA%`): last-used
   source/output folders, process mode, and profile.
+- Select individual files as the source, instead of always requiring a
+  whole folder ("Or Select Individual Files..." in the GUI). Selected
+  files are written flat into the output folder by filename.
 - pytest suite covering discovery, compression, orchestration, profiles,
-  settings persistence, and report export (22 tests).
+  settings persistence, report export, and individual-file selection
+  (27 tests).
 - GitHub Actions CI: tests on Python 3.10-3.12, plus a packaging sanity
   build (PyInstaller + installer) on every push/PR to `main`.
 - `LICENSE` (MIT), `.editorconfig`, `ARCHITECTURE.md`, `CONTRIBUTING.md`,
