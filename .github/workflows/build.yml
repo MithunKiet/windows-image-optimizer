@@ -45,7 +45,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Build standalone EXE
-        run: pyinstaller --noconsole --onefile main.py
+        run: pyinstaller --noconsole --onefile --icon assets\icon.ico main.py
 
       - name: Build Windows installer
         run: powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\build-installer.ps1

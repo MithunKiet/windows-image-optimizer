@@ -6,6 +6,7 @@ $sourceExe = Join-Path $distDir "main.exe"
 $payloadDir = Join-Path $PSScriptRoot "payload"
 $installerExe = Join-Path $distDir "CImageOptimizer-Setup.exe"
 $setupSource = Join-Path $PSScriptRoot "Setup.cs"
+$iconFile = Join-Path $projectRoot "assets\icon.ico"
 
 if (-not (Test-Path -LiteralPath $sourceExe)) {
     throw "Missing PyInstaller output: $sourceExe. Build it first with: pyinstaller --noconsole --onefile main.py"
@@ -23,7 +24,12 @@ if (-not (Test-Path -LiteralPath $csc)) {
     throw "Could not find the .NET Framework C# compiler."
 }
 
-& $csc /nologo /target:winexe /platform:anycpu /optimize+ /out:"$installerExe" /reference:System.Windows.Forms.dll /resource:"$payloadDir\CImageOptimizer.exe,CImageOptimizer.exe" /resource:"$payloadDir\Uninstall-CImageOptimizer.ps1,Uninstall-CImageOptimizer.ps1" "$setupSource"
+$iconArg = @()
+if (Test-Path -LiteralPath $iconFile) {
+    $iconArg = @("/win32icon:$iconFile")
+}
+
+& $csc /nologo /target:winexe /platform:anycpu /optimize+ @iconArg /out:"$installerExe" /reference:System.Windows.Forms.dll /resource:"$payloadDir\CImageOptimizer.exe,CImageOptimizer.exe" /resource:"$payloadDir\Uninstall-CImageOptimizer.ps1,Uninstall-CImageOptimizer.ps1" "$setupSource"
 if ($LASTEXITCODE -ne 0) {
     throw "C# compiler failed with exit code $LASTEXITCODE"
 }

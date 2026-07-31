@@ -50,10 +50,13 @@ independent logic.
 ## Building the standalone EXE
 
 ```powershell
-pyinstaller --noconsole --onefile main.py
+pyinstaller --noconsole --onefile --icon assets\icon.ico main.py
 ```
 
-Produces `dist\main.exe`. PyInstaller performs static import analysis
+Produces `dist\main.exe`, with `assets/icon.ico` embedded as its resource
+icon - the installer's shortcuts (`Setup.cs`) point `IconLocation` at that
+exe, so this one flag propagates the icon to the taskbar, Start Menu, and
+Desktop shortcuts. PyInstaller performs static import analysis
 starting from `main.py`; because `cimageoptimizer/` is a normal sibling
 package (not behind an editable install), it's picked up automatically -
 no `--paths` or hidden-import flags are needed.
@@ -69,7 +72,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\build-installer.
 This compiles `installer/Setup.cs` directly with `csc.exe` (no `.csproj`/
 MSBuild project - kept lightweight since it's a ~150-line installer, not a
 standalone application), embedding `dist\main.exe` and the uninstall script
-as assembly resources, and produces `dist\CImageOptimizer-Setup.exe`.
+as assembly resources, and produces `dist\CImageOptimizer-Setup.exe`. If
+`assets/icon.ico` exists, it's also passed as `/win32icon` so the installer
+exe itself carries the icon, not just the app it installs.
 
 ## Continuous Integration
 
