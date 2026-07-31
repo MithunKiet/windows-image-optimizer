@@ -19,8 +19,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   completes.
 - Persisted user settings (`settings.json` under `%APPDATA%`): last-used
   source/output folders, process mode, and profile.
+- Select individual files as the source, instead of always requiring a
+  whole folder ("Or Select Individual Files..." in the GUI). Selected
+  files are written flat into the output folder by filename.
+- "Keep original resolution (don't resize, only compress)" option: skips
+  the resize step entirely and only reduces file size via JPEG quality.
+- "Overwrite existing files in output" option: disables the incremental
+  skip-if-exists check so a rerun into a folder that already has a
+  same-named file actually reprocesses it, instead of silently finding
+  0 files to process.
+- "Convert oversized PNG/BMP/TIFF to JPEG to hit the size target" option:
+  when a lossless image is still over the size target after one
+  optimization pass, re-saves it as a real lossy .jpg instead of leaving
+  it oversized.
 - pytest suite covering discovery, compression, orchestration, profiles,
-  settings persistence, and report export (22 tests).
+  settings persistence, report export, individual-file selection,
+  resolution preservation, overwrite behavior, and lossless-format
+  compression (36 tests).
 - GitHub Actions CI: tests on Python 3.10-3.12, plus a packaging sanity
   build (PyInstaller + installer) on every push/PR to `main`.
 - `LICENSE` (MIT), `.editorconfig`, `ARCHITECTURE.md`, `CONTRIBUTING.md`,
@@ -39,6 +54,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A file that failed both compression and its fallback copy was recorded
   as two separate failures instead of one, silently double-counting it in
   `failed_count` and the failed-files log.
+- The quality-search compression loop ran unchanged for PNG/BMP/TIFF, but
+  Pillow ignores `quality` for those formats entirely - it was silently
+  re-encoding identical bytes up to 9-11 times per file for zero size
+  reduction (a 9.9MB PNG took ~100s; same output now takes ~3.6s).
 
 ### Removed
 

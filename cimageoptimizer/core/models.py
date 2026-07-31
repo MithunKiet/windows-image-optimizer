@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Sequence
 
 from cimageoptimizer.core.constants import (
     DEFAULT_INITIAL_QUALITY,
@@ -33,6 +33,26 @@ class OptimizationSettings:
     min_quality: int = DEFAULT_MIN_QUALITY
     max_width: int = DEFAULT_MAX_WIDTH
     quality_step: int = DEFAULT_QUALITY_STEP
+    # When set, the run processes exactly these files instead of walking
+    # source_dir. Files are written flat into output_dir (by filename),
+    # since an explicit selection may span unrelated directories with no
+    # common structure worth preserving. source_dir is still required and
+    # used for logging/display, but is not used for path resolution in
+    # this mode.
+    source_files: Optional[tuple[Path, ...]] = None
+    # When True, images are never resized regardless of max_width - only
+    # quality/compression is used to reduce file size.
+    preserve_resolution: bool = False
+    # When True, a file is reprocessed even if a same-named file already
+    # exists at its destination (normally such files are skipped, which is
+    # what makes reruns incremental).
+    overwrite_existing: bool = False
+    # When True, a lossless image (PNG/BMP/TIFF) that is still over
+    # max_size_mb after a single lossless optimization pass is re-saved as
+    # a .jpg using real lossy compression to reach the target. The original
+    # lossless output is removed and replaced by the .jpg - see
+    # ImageCompressionService for the size-check logic.
+    convert_to_jpeg_if_oversized: bool = False
 
     @property
     def images_only(self) -> bool:
@@ -45,10 +65,23 @@ class OptimizationSettings:
         source_dir: Path,
         output_dir: Path,
         process_mode: ProcessMode = ProcessMode.ALL_FILES,
+        source_files: Optional[Sequence[Path]] = None,
+        preserve_resolution: bool = False,
+        overwrite_existing: bool = False,
+        convert_to_jpeg_if_oversized: bool = False,
     ) -> "OptimizationSettings":
         """Builds settings from one of the Safe/Recommended/Advanced presets."""
         preset = PROFILE_PRESETS[profile]
-        return cls(source_dir=source_dir, output_dir=output_dir, process_mode=process_mode, **preset)
+        return cls(
+            source_dir=source_dir,
+            output_dir=output_dir,
+            process_mode=process_mode,
+            source_files=tuple(source_files) if source_files is not None else None,
+            preserve_resolution=preserve_resolution,
+            overwrite_existing=overwrite_existing,
+            convert_to_jpeg_if_oversized=convert_to_jpeg_if_oversized,
+            **preset,
+        )
 
 
 @dataclass

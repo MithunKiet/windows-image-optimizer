@@ -33,3 +33,16 @@ def test_skips_files_already_present_in_output(tmp_path, make_image):
     missing = FileDiscoveryService().find_missing_files(source, output, images_only=False)
 
     assert missing == []
+
+
+def test_overwrite_existing_includes_files_already_present_in_output(tmp_path, make_image):
+    source = tmp_path / "source"
+    output = tmp_path / "output"
+    make_image(source / "a.jpg")
+    make_image(output / "a.jpg")
+
+    missing = FileDiscoveryService().find_missing_files(
+        source, output, images_only=False, overwrite_existing=True
+    )
+
+    assert [p.name for p in missing] == ["a.jpg"]

@@ -40,10 +40,12 @@ python -m pytest
 ```
 
 The suite covers `cimageoptimizer/core` and `cimageoptimizer/application`
-(discovery, compression, orchestration, profiles, settings persistence,
-report export). The GUI layer (`presentation/gui`) is intentionally thin
-and is exercised manually rather than under pytest, since it's mostly
-Tkinter wiring with no independent logic.
+(discovery - including individual-file selection, compression - including
+the quality-search vs. lossless-single-pass split and JPEG-conversion
+fallback, orchestration, profiles, settings persistence, report export).
+The GUI layer (`presentation/gui`) is intentionally thin and is exercised
+manually rather than under pytest, since it's mostly Tkinter wiring with no
+independent logic.
 
 ## Building the standalone EXE
 

@@ -37,15 +37,16 @@ class App:
         self._report_service = report_service or ReportService()
         self._saved_settings = load_settings()
         self._last_result: Optional[OptimizationResult] = None
+        self._selected_files: Optional[list[Path]] = None
 
         self.root.title("CImageOptimizer")
-        self.root.geometry("600x440")
-        self.root.minsize(500, 380)
+        self.root.geometry("600x560")
+        self.root.minsize(500, 460)
 
-        # Configure grid weight - row 6 holds the log panel, which should
+        # Configure grid weight - row 10 holds the log panel, which should
         # absorb all extra vertical space when the window is resized.
         self.root.columnconfigure(1, weight=1)
-        self.root.rowconfigure(6, weight=1)
+        self.root.rowconfigure(10, weight=1)
 
         self.is_cancelled = False
 
@@ -53,17 +54,28 @@ class App:
         # --- Source ---
         ttk.Label(root, text="Source Directory:").grid(row=0, column=0, padx=10, pady=(15, 5), sticky="w")
         self.source_var = tk.StringVar(value=self._saved_settings.get("source_dir", ""))
-        ttk.Entry(root, textvariable=self.source_var).grid(row=0, column=1, padx=10, pady=(15, 5), sticky="ew")
-        ttk.Button(root, text="Browse", command=self.browse_source).grid(row=0, column=2, padx=10, pady=(15, 5))
+        self.source_entry = ttk.Entry(root, textvariable=self.source_var)
+        self.source_entry.grid(row=0, column=1, padx=10, pady=(15, 5), sticky="ew")
+        # Typing directly (or picking a folder) means "use this folder";
+        # it overrides any previously selected individual files.
+        self.source_entry.bind("<Key>", lambda _event: setattr(self, "_selected_files", None))
+        ttk.Button(root, text="Browse Folder", command=self.browse_source).grid(
+            row=0, column=2, padx=10, pady=(15, 5)
+        )
+
+        ttk.Label(root, text="").grid(row=1, column=0)
+        ttk.Button(root, text="Or Select Individual Files...", command=self.select_source_files).grid(
+            row=1, column=1, columnspan=2, padx=10, pady=(0, 5), sticky="w"
+        )
 
         # --- Output ---
-        ttk.Label(root, text="Output Directory:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        ttk.Label(root, text="Output Directory:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
         self.output_var = tk.StringVar(value=self._saved_settings.get("output_dir", ""))
-        ttk.Entry(root, textvariable=self.output_var).grid(row=1, column=1, padx=10, pady=5, sticky="ew")
-        ttk.Button(root, text="Browse", command=self.browse_output).grid(row=1, column=2, padx=10, pady=5)
+        ttk.Entry(root, textvariable=self.output_var).grid(row=2, column=1, padx=10, pady=5, sticky="ew")
+        ttk.Button(root, text="Browse", command=self.browse_output).grid(row=2, column=2, padx=10, pady=5)
 
         # --- Process mode ---
-        ttk.Label(root, text="Process Mode:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+        ttk.Label(root, text="Process Mode:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
         saved_mode = self._saved_settings.get("process_mode")
         mode_default = MODE_IMAGES_ONLY if saved_mode == ProcessMode.IMAGES_ONLY.value else MODE_ALL_FILES
         self.mode_var = tk.StringVar(value=mode_default)
@@ -73,10 +85,10 @@ class App:
             state="readonly",
             values=[MODE_ALL_FILES, MODE_IMAGES_ONLY],
         )
-        self.mode_cb.grid(row=2, column=1, columnspan=2, padx=10, pady=5, sticky="ew")
+        self.mode_cb.grid(row=3, column=1, columnspan=2, padx=10, pady=5, sticky="ew")
 
         # --- Optimization profile ---
-        ttk.Label(root, text="Profile:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+        ttk.Label(root, text="Profile:").grid(row=4, column=0, padx=10, pady=5, sticky="w")
         saved_profile = self._saved_settings.get("profile", OptimizationProfile.RECOMMENDED.value)
         try:
             profile_default = PROFILE_LABELS[OptimizationProfile(saved_profile)]
@@ -89,11 +101,38 @@ class App:
             state="readonly",
             values=list(PROFILE_LABELS.values()),
         )
-        self.profile_cb.grid(row=3, column=1, columnspan=2, padx=10, pady=5, sticky="ew")
+        self.profile_cb.grid(row=4, column=1, columnspan=2, padx=10, pady=5, sticky="ew")
+
+        # --- Preserve resolution ---
+        saved_preserve_resolution = bool(self._saved_settings.get("preserve_resolution", False))
+        self.preserve_resolution_var = tk.BooleanVar(value=saved_preserve_resolution)
+        ttk.Checkbutton(
+            root,
+            text="Keep original resolution (don't resize, only compress)",
+            variable=self.preserve_resolution_var,
+        ).grid(row=5, column=1, columnspan=2, padx=10, pady=5, sticky="w")
+
+        # --- Overwrite existing ---
+        saved_overwrite_existing = bool(self._saved_settings.get("overwrite_existing", False))
+        self.overwrite_existing_var = tk.BooleanVar(value=saved_overwrite_existing)
+        ttk.Checkbutton(
+            root,
+            text="Overwrite existing files in output (disables incremental skip)",
+            variable=self.overwrite_existing_var,
+        ).grid(row=6, column=1, columnspan=2, padx=10, pady=5, sticky="w")
+
+        # --- Convert oversized lossless images to JPEG ---
+        saved_convert = bool(self._saved_settings.get("convert_to_jpeg_if_oversized", False))
+        self.convert_to_jpeg_var = tk.BooleanVar(value=saved_convert)
+        ttk.Checkbutton(
+            root,
+            text="Convert oversized PNG/BMP/TIFF to JPEG to hit the size target",
+            variable=self.convert_to_jpeg_var,
+        ).grid(row=7, column=1, columnspan=2, padx=10, pady=5, sticky="w")
 
         # --- Action ---
         self.action_frame = ttk.Frame(root)
-        self.action_frame.grid(row=4, column=0, columnspan=3, pady=10)
+        self.action_frame.grid(row=8, column=0, columnspan=3, pady=10)
 
         self.start_btn = ttk.Button(self.action_frame, text="Start Optimization", command=self.start_optimization)
         self.start_btn.pack(side=tk.LEFT, padx=5)
@@ -109,11 +148,11 @@ class App:
         # --- Progress ---
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(root, variable=self.progress_var, maximum=100)
-        self.progress_bar.grid(row=5, column=0, columnspan=3, padx=10, pady=5, sticky="ew")
+        self.progress_bar.grid(row=9, column=0, columnspan=3, padx=10, pady=5, sticky="ew")
 
         # --- Logs ---
         self.log_text = tk.Text(root, state="disabled", height=10)
-        self.log_text.grid(row=6, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
+        self.log_text.grid(row=10, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
 
     def cancel_optimization(self) -> None:
         self.is_cancelled = True
@@ -147,7 +186,15 @@ class App:
     def browse_source(self) -> None:
         folder = filedialog.askdirectory(title="Select Source Directory")
         if folder:
+            self._selected_files = None
             self.source_var.set(folder)
+
+    def select_source_files(self) -> None:
+        files = filedialog.askopenfilenames(title="Select Files to Optimize")
+        if not files:
+            return
+        self._selected_files = [Path(f) for f in files]
+        self.source_var.set(f"{len(self._selected_files)} file(s) selected")
 
     def browse_output(self) -> None:
         folder = filedialog.askdirectory(title="Select Output Directory")
@@ -172,23 +219,45 @@ class App:
         self.progress_var.set(percentage)
 
     def start_optimization(self) -> None:
-        source = self.source_var.get().strip()
         output = self.output_var.get().strip()
         process_mode = ProcessMode.IMAGES_ONLY if self.mode_var.get() == MODE_IMAGES_ONLY else ProcessMode.ALL_FILES
         profile = PROFILE_LABELS_BY_TEXT[self.profile_var.get()]
 
-        if not source or not output:
-            messagebox.showerror("Error", "Please select both Source and Output directories.")
+        if not output:
+            messagebox.showerror("Error", "Please select an Output directory.")
             return
 
-        save_settings(
-            {
-                "source_dir": source,
-                "output_dir": output,
-                "process_mode": process_mode.value,
-                "profile": profile.value,
-            }
-        )
+        if self._selected_files:
+            source_files = self._selected_files
+            source_dir = source_files[0].parent
+        else:
+            source = self.source_var.get().strip()
+            if not source:
+                messagebox.showerror(
+                    "Error", "Please select a Source directory, or select individual files."
+                )
+                return
+            source_files = None
+            source_dir = Path(source)
+
+        preserve_resolution = self.preserve_resolution_var.get()
+        overwrite_existing = self.overwrite_existing_var.get()
+        convert_to_jpeg_if_oversized = self.convert_to_jpeg_var.get()
+
+        # Individual file selections aren't persisted (the files may not
+        # exist next launch); only folder-based settings are remembered.
+        if source_files is None:
+            save_settings(
+                {
+                    "source_dir": str(source_dir),
+                    "output_dir": output,
+                    "process_mode": process_mode.value,
+                    "profile": profile.value,
+                    "preserve_resolution": preserve_resolution,
+                    "overwrite_existing": overwrite_existing,
+                    "convert_to_jpeg_if_oversized": convert_to_jpeg_if_oversized,
+                }
+            )
 
         self.start_btn.config(state="disabled")
         self.export_btn.config(state="disabled")
@@ -203,7 +272,16 @@ class App:
 
         self.is_cancelled = False
 
-        settings = OptimizationSettings.for_profile(profile, Path(source), Path(output), process_mode)
+        settings = OptimizationSettings.for_profile(
+            profile,
+            source_dir,
+            Path(output),
+            process_mode,
+            source_files=source_files,
+            preserve_resolution=preserve_resolution,
+            overwrite_existing=overwrite_existing,
+            convert_to_jpeg_if_oversized=convert_to_jpeg_if_oversized,
+        )
 
         # Run in thread to prevent UI freezing
         thread = threading.Thread(target=self.run_task, args=(settings,))

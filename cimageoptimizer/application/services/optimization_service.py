@@ -58,13 +58,27 @@ class OptimizationService:
             if log_callback:
                 log_callback(message)
 
-        log(f"Source: {settings.source_dir}")
+        if settings.source_files is not None:
+            log(f"Source: {len(settings.source_files)} individual file(s) selected")
+        else:
+            log(f"Source: {settings.source_dir}")
         log(f"Output: {settings.output_dir}")
         log("Scanning for files to process...")
 
-        missing_files = self._discovery_service.find_missing_files(
-            settings.source_dir, settings.output_dir, settings.images_only
-        )
+        if settings.source_files is not None:
+            missing_files = self._discovery_service.find_missing_from_files(
+                settings.source_files,
+                settings.output_dir,
+                settings.images_only,
+                settings.overwrite_existing,
+            )
+        else:
+            missing_files = self._discovery_service.find_missing_files(
+                settings.source_dir,
+                settings.output_dir,
+                settings.images_only,
+                settings.overwrite_existing,
+            )
         total_files = len(missing_files)
         log(f"Files found to process: {total_files}")
 
@@ -88,8 +102,7 @@ class OptimizationService:
         def worker(src_file: Path) -> None:
             nonlocal completed_count
             if not is_cancelled():
-                relative_path = src_file.relative_to(settings.source_dir)
-                dst_file = settings.output_dir / relative_path
+                dst_file = self._destination_for(src_file, settings)
                 self._process_one(src_file, dst_file, settings, result, result_lock)
 
             with progress_lock:
@@ -121,6 +134,11 @@ class OptimizationService:
         log("Done. Missing files optimized/copied.")
         return result
 
+    def _destination_for(self, src_file: Path, settings: OptimizationSettings) -> Path:
+        if settings.source_files is not None:
+            return settings.output_dir / src_file.name
+        return settings.output_dir / src_file.relative_to(settings.source_dir)
+
     def _process_one(
         self,
         src_file: Path,
@@ -131,12 +149,12 @@ class OptimizationService:
     ) -> None:
         original_size = src_file.stat().st_size
         try:
-            self._compression_service.process(src_file, dst_file, settings)
+            actual_dst = self._compression_service.process(src_file, dst_file, settings)
             outcome = FileOutcome(
                 source=src_file,
-                destination=dst_file,
+                destination=actual_dst,
                 original_size_bytes=original_size,
-                final_size_bytes=dst_file.stat().st_size,
+                final_size_bytes=actual_dst.stat().st_size,
             )
         except Exception as exc:  # noqa: BLE001 - a single bad file must not abort the batch
             logger.exception("Failed to process %s", src_file)
