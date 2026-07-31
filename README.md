@@ -7,16 +7,26 @@ CImageOptimizer is a Windows desktop GUI application for optimizing, resizing, a
 
 ## Features
 
-- Select source and output folders from a simple GUI.
+- Select a source folder, **or** pick individual files instead ("Or Select
+  Individual Files..."), plus an output folder, from a simple GUI.
 - Optimize `.jpg`, `.jpeg`, `.png`, `.webp`, `.bmp`, `.tif`, and `.tiff` files.
 - Choose a **Safe / Recommended / Advanced** profile to control how aggressively images are compressed.
-- Resize very large images (down to each profile's max width, `1920px` by default).
+- Resize very large images (down to each profile's max width, `1920px` by
+  default), or check **Keep original resolution** to only compress without
+  ever changing dimensions.
+- JPEG and WEBP are compressed with a real quality search; PNG/BMP/TIFF (which
+  have no lossy "quality" in the first place) get one optimized lossless
+  pass, with an optional **Convert oversized PNG/BMP/TIFF to JPEG** fallback
+  if a lossless image is still over the size target.
 - Copy non-image files without modifying them.
 - Process files concurrently with a bounded thread pool.
-- Incremental runs: files already present in the output folder are skipped.
+- Incremental runs: files already present in the output folder are skipped
+  by default; check **Overwrite existing files** to reprocess them instead.
 - Show live progress, cancel a running batch, and view processing logs.
 - Export a JSON or CSV report of what was processed after a run.
-- Remembers your last-used folders, mode, and profile (`settings.json`).
+- Remembers your last-used folders, mode, profile, and option checkboxes
+  (`settings.json`) - individual file selections are not remembered, since
+  the files may not exist on the next launch.
 - Build a standalone Windows `.exe`.
 - Build a Windows installer with Desktop shortcut, Start Menu shortcut, and uninstall support.
 
