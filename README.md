@@ -35,6 +35,7 @@ CImageOptimizer is a Windows desktop GUI application for optimizing, resizing, a
 ```text
 windows-image-optimizer/
 |-- main.py                         # Thin GUI entry point (kept at root for PyInstaller)
+|-- assets/                         # App icon (icon.ico / icon.png)
 |-- cimageoptimizer/                # Application package (Clean-Architecture-style layers)
 |   |-- core/                       # Constants, enums, exceptions, dataclasses - no I/O
 |   |-- application/services/       # Discovery, compression, orchestration, report export
@@ -124,7 +125,7 @@ Use this command when you want to test the app before creating the `.exe` or ins
 Run:
 
 ```powershell
-pyinstaller --noconsole --onefile main.py
+pyinstaller --noconsole --onefile --icon assets\icon.ico main.py
 ```
 
 After the build finishes, this file is created:
@@ -212,7 +213,7 @@ Run these commands in order:
 ```powershell
 cd C:\Users\240135357\Downloads\CImageOptimizer
 pip install -r requirements.txt
-pyinstaller --noconsole --onefile main.py
+pyinstaller --noconsole --onefile --icon assets\icon.ico main.py
 powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\build-installer.ps1
 ```
 
@@ -260,7 +261,7 @@ pip install -r requirements.txt
 If it still fails, try:
 
 ```powershell
-python -m PyInstaller --noconsole --onefile main.py
+python -m PyInstaller --noconsole --onefile --icon assets\icon.ico main.py
 ```
 
 ### `dist\main.exe` is missing
@@ -268,7 +269,7 @@ python -m PyInstaller --noconsole --onefile main.py
 Build the standalone app first:
 
 ```powershell
-pyinstaller --noconsole --onefile main.py
+pyinstaller --noconsole --onefile --icon assets\icon.ico main.py
 ```
 
 ### PowerShell execution policy error

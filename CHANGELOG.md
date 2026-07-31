@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- App icon (`assets/icon.ico`), embedded in `main.exe` via PyInstaller and
+  in the installer exe via `csc.exe /win32icon` - shows up in the taskbar,
+  Start Menu, Desktop shortcut, and Add/Remove Programs.
 - Layered application structure under `cimageoptimizer/` (`core`,
   `application/services`, `infrastructure`, `presentation/gui`), replacing
   the previous `optimizer.py` + `main.py` split.
